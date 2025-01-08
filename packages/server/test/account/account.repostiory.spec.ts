@@ -3,9 +3,9 @@ import { InternalServerErrorException, UnprocessableEntityException, Logger } fr
 import { DataSource, QueryRunner, Repository } from 'typeorm';
 import { Account } from '@src/account/account.entity';
 import { User } from '@src/auth/user.entity';
-import { AccountRepository } from './account.repository';
-import { CURRENCY_CONSTANTS } from './constants/currency.constants';
-import { UserDto } from './dtos/my-account.response.dto';
+import { AccountRepository } from '@src/account/account.repository';
+import { CURRENCY_CONSTANTS } from '@src/account/constants/currency.constants';
+import { UserDto } from '@src/account/dtos/my-account.response.dto';
 import { formatQuantity } from '@src/trade/helpers/trade.helper';
 
 describe('AccountRepository', () => {
