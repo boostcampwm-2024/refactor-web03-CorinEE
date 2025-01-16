@@ -27,8 +27,10 @@ import { FRONTEND_URL } from './constants';
 @Controller('auth')
 export class AuthController {
 
-	private readonly logger = new Logger(AuthController.name);
-	constructor(private authService: AuthService) { }
+	//private readonly logger = new Logger(AuthController.name);
+	constructor(private authService: AuthService,
+    private readonly logger: Logger,
+  ) { }
 
   @ApiBody({ type: SignInDto })
   @HttpCode(HttpStatus.OK)

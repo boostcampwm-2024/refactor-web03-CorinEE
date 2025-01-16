@@ -1,4 +1,4 @@
-import { Module, Global } from '@nestjs/common';
+import { Module, Global, Logger } from '@nestjs/common';
 import { CoinTickerService } from './SSE/coin-ticker-websocket.service';
 import { UpbitController } from './upbit.controller';
 import { CoinListService } from './coin-list.service';
@@ -7,6 +7,7 @@ import { SseService } from './SSE/sse.service';
 import { OrderbookService } from './SSE/orderbook-websocket.service';
 import { CoinDataUpdaterService } from './coin-data-updater.service';
 import { ChartService } from './chart.service';
+import { CustomLogger } from '@src/common/custom-logger';
 
 @Global()
 @Module({
@@ -18,6 +19,13 @@ import { ChartService } from './chart.service';
     OrderbookService,
     CoinDataUpdaterService,
     ChartService,
+    Logger,
+    {
+      provide: 'CoinUpdaterLogger',
+      useFactory: () => {
+        return new CustomLogger('CoinDataUpdaterService');
+      },
+    },
   ],
   controllers: [UpbitController],
   exports: [CoinDataUpdaterService],

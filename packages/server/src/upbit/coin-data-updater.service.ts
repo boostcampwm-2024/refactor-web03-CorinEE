@@ -1,4 +1,4 @@
-import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
+import { Inject, Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { HttpService } from '@nestjs/axios';
 import { firstValueFrom } from 'rxjs';
 import {
@@ -9,10 +9,11 @@ import {
 	UPBIT_UPDATED_COIN_INFO_TIME,
 	UPBIT_UPDATED_COIN_LIST_TIME,
 } from '@src/upbit/constants';
+import { CustomLogger } from '@src/common/custom-logger';
 
 @Injectable()
 export class CoinDataUpdaterService implements OnModuleInit {
-	private readonly logger = new Logger(CoinDataUpdaterService.name);
+	//private readonly logger = new Logger(CoinDataUpdaterService.name);
 
 	private coinRawList: any;
 	private coinCodeList: string[] = ['KRW-BTC'];
@@ -27,7 +28,10 @@ export class CoinDataUpdaterService implements OnModuleInit {
 		currentOrderBook: null as NodeJS.Timeout | null,
 	};
 
-	constructor(private readonly httpService: HttpService) {}
+	constructor(private readonly httpService: HttpService,
+		@Inject('CoinUpdaterLogger') private readonly logger: CustomLogger,
+	) {
+	}
 
 	async onModuleInit() {
 		await this.initializeCoinData();

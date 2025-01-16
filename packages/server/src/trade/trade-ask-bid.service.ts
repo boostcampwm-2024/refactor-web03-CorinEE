@@ -111,6 +111,7 @@ export class TradeAskBidService {
       await queryRunner.commitTransaction();
       return result;
     } catch (error) {
+      this.logger.error('trade 롤백중입니다.');
       await queryRunner.rollbackTransaction();
       throw error;
     } finally {
@@ -126,7 +127,6 @@ export class TradeAskBidService {
     tradeData.quantity = formatQuantity(tradeData.quantity - buyData.quantity);
     if (isMinimumQuantity(tradeData.quantity)) {
       await this.tradeRepository.deleteTrade(tradeData.tradeId, queryRunner);
-      await queryRunner.commitTransaction();
       await this.redisRepository.deleteTrade(tradeData);
     } else {
       await this.tradeRepository.updateTradeQuantity(tradeData, queryRunner);
