@@ -1,4 +1,4 @@
-import { Module, forwardRef } from '@nestjs/common';
+import { Logger, Module, forwardRef } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { Account } from './account.entity';
 import { AccountRepository } from './account.repository';
@@ -8,6 +8,7 @@ import { AccountService } from './account.service';
 import { AssetRepository } from '@src/asset/asset.repository';
 import { AssetService } from '@src/asset/asset.service';
 import { CoinListService } from '@src/upbit/coin-list.service';
+import { CustomLogger } from '@src/common/custom-logger';
 
 @Module({
 	imports: [TypeOrmModule.forFeature([Account, User])],
@@ -18,6 +19,7 @@ import { CoinListService } from '@src/upbit/coin-list.service';
 		AssetRepository,
 		AssetService,
 		CoinListService,
+		Logger,
 	],
 })
 export class AccountModule {}

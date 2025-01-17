@@ -1,5 +1,6 @@
 import {
   HttpStatus,
+  Inject,
   Injectable,
   Logger,
   NotFoundException,
@@ -18,10 +19,11 @@ import { AccountRepository } from './account.repository';
 import { Asset } from '@src/asset/asset.entity';
 import { AssetService } from '@src/asset/asset.service';
 import { CoinListService } from '@src/upbit/coin-list.service';
+import { CustomLogger } from '@src/common/custom-logger';
 
 @Injectable()
 export class AccountService {
-  private readonly logger = new Logger(AccountService.name);
+  // private readonly logger = new Logger(AccountService.name);
 
   constructor(
     private readonly accountRepository: AccountRepository,
@@ -29,7 +31,9 @@ export class AccountService {
     private readonly assetService: AssetService,
     private readonly coinListService: CoinListService,
     private readonly coinDataUpdaterService: CoinDataUpdaterService,
-  ) {}
+    private readonly logger: Logger,
+  ) {
+  }
 
   async getMyAccountData(
     user: UserDto,

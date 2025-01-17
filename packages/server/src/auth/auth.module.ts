@@ -1,4 +1,4 @@
-import { Module, forwardRef } from '@nestjs/common';
+import { Logger, Module, forwardRef } from '@nestjs/common';
 import { UserRepository } from './user.repository';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { User } from './user.entity';
@@ -45,6 +45,7 @@ import { CoinListService } from '@src/upbit/coin-list.service';
 		GoogleStrategy,
 		KakaoStrategy,
 		CoinListService,
+		Logger
 	],
 	controllers: [AuthController, UserController],
 	exports: [UserRepository],

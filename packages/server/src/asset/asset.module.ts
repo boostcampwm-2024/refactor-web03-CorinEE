@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { Logger, Module } from '@nestjs/common';
 import { AssetService } from './asset.service';
 import { AssetRepository } from './asset.repository';
 import { TypeOrmModule } from '@nestjs/typeorm';
@@ -11,6 +11,7 @@ import { HttpModule } from '@nestjs/axios';
 	providers: [
 		AssetService,
 		AssetRepository,
+		Logger
 	],
 	exports: [AssetRepository],
 })

@@ -3,18 +3,23 @@ import {
 	Injectable,
 	UnprocessableEntityException,
 	Logger,
+	Inject,
 } from '@nestjs/common';
 import { Account } from './account.entity';
 import { User } from '@src/auth/user.entity';
 import { CURRENCY_CONSTANTS } from './constants/currency.constants';
 import { UserDto } from './dtos/my-account.response.dto';
 import { formatQuantity } from '@src/trade/helpers/trade.helper';
+import { CustomLogger } from '@src/common/custom-logger';
 
 @Injectable()
 export class AccountRepository extends Repository<Account> {
-	private readonly logger = new Logger(AccountRepository.name);
+	// private readonly logger = new Logger(AccountRepository.name);
 
-	constructor(private readonly dataSource: DataSource) {
+	constructor(
+		private readonly dataSource: DataSource,
+		private readonly logger: Logger,
+	) {
 		super(Account, dataSource.createEntityManager());
 	}
 
