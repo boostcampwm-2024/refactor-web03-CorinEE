@@ -12,7 +12,7 @@ import { ChartRedisRepository } from './chart-redis.repository';
       provide: 'TRADE_REDIS_CLIENT',
       useFactory: () => {
         const config = getRedisConfig();
-        const client = new Redis({ ...config, db: 1 });
+        const client = new Redis({ ...config, db: 4 });
         const logger = new Logger('TRADE_REDIS_CLIENT');
         client.on('connect', () => logger.log('트레이드용 Redis 연결 성공'));
         client.on('error', (error) =>

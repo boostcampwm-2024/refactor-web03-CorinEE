@@ -157,18 +157,20 @@ export class AccountRepository extends Repository<Account> {
 		}
 	}
 
-	async validateUserAccount(userId: number): Promise<Account> {
-		this.logger.log(`사용자 계정 검증 시작: userId=${userId}`);
-		const userAccount = await this.findOne({
-			where: { user: { id: userId } },
-		});
-
-		if (!userAccount) {
-			this.logger.warn(`존재하지 않는 사용자 계정: userId=${userId}`);
-			throw new UnprocessableEntityException('유저가 존재하지 않습니다.');
+	async validateUserAccount(userId: number, queryRunner): Promise<Account> {
+		try{
+			this.logger.log(`사용자 계정 검증 시작: userId=${userId}`);
+			const userAccount = await queryRunner.manager.findOne(Account, {
+				where: { user: { id: userId } },
+			  });
+			if (!userAccount) {
+				this.logger.warn(`존재하지 않는 사용자 계정: userId=${userId}`);
+				throw new UnprocessableEntityException('유저가 존재하지 않습니다.');
+			}
+			return userAccount;
+		} catch (error) {
+			this.logger.error(`계좌 조회 실패: ${error.message}`, error.stack);
 		}
-
-		return userAccount;
 	}
 
 	async getAccount(id: number, queryRunner: QueryRunner): Promise<Account> {

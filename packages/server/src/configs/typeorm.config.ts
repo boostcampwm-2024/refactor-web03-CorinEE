@@ -1,4 +1,5 @@
 import { TypeOrmModuleOptions } from '@nestjs/typeorm';
+import { connect } from 'http2';
 
 export default function getTypeOrmConfig(): TypeOrmModuleOptions {
   return {
@@ -11,5 +12,8 @@ export default function getTypeOrmConfig(): TypeOrmModuleOptions {
     entities: [__dirname + '/../**/*.entity.{js,ts}'],
     synchronize: process.env.DB_SYNCHRONIZE === 'true',
     dropSchema: process.env.DB_DROPSCHEMA === 'true',
+    extra:{
+      connectionLimit: 10,
+    }
   };
 }

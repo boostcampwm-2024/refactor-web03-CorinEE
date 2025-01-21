@@ -32,8 +32,32 @@ export class UserRepository extends Repository<User> {
       throw error;
     }
   }
-  async validateUser(userId: number): Promise<User> {
-    const user = await this.getUser(userId);
+
+  async getUserByQueryRunner(userId: number, queryRunner): Promise<User> {
+    try {
+      const user = await queryRunner.manager.findOne(User,{
+        where: { id: userId },
+      });
+
+      if (!user) {
+        this.logger.warn('User not found', { userId });
+        throw new UserNotFoundException(userId);
+      }
+
+      return user;
+    } catch (error) {
+      if (!(error instanceof UserNotFoundException)) {
+        this.logger.error('Failed to fetch user', {
+          userId,
+          error: error.stack,
+        });
+      }
+      throw error;
+    }
+  }
+
+  async validateUser(userId: number, queryRunner): Promise<User> {
+    const user = await this.getUserByQueryRunner(userId, queryRunner);
 
     if (!user) {
       throw new UserNotFoundException(userId);
