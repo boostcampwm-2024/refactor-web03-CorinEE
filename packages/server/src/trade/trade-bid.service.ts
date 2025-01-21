@@ -22,6 +22,7 @@ import { TradeAskBidService } from './trade-ask-bid.service';
 
 @Injectable()
 export class BidService extends TradeAskBidService implements OnModuleInit {
+
 	private transactionCreateBid: boolean = false;
 	private isProcessing: { [key: number]: boolean } = {};
 
@@ -61,10 +62,10 @@ export class BidService extends TradeAskBidService implements OnModuleInit {
 			throw new BadRequestException('최소 거래 금액보다 작습니다.');
 		}
 
-		if (this.transactionCreateBid) {
-			await this.waitForTransaction(() => this.transactionCreateBid);
-		}
-		this.transactionCreateBid = true;
+		// if (this.transactionCreateBid) {
+		// 	await this.waitForTransaction(() => this.transactionCreateBid);
+		// }
+		// this.transactionCreateBid = true;
 
 		try {
 			let userTrade;

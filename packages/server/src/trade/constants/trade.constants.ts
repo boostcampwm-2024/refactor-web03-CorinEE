@@ -5,4 +5,4 @@ export enum TRADE_TYPES {
 
 export const MINIMUM_TRADE_AMOUNT = 0.00000001;
 
-export const TRANSACTION_CHECK_INTERVAL = 100; // ms
+export const TRANSACTION_CHECK_INTERVAL = 1; // ms

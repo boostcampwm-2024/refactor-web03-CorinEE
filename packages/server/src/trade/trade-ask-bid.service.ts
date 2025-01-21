@@ -10,6 +10,7 @@ import { CoinPriceDto, TradeData } from './dtos/trade.interface';
 import { formatQuantity, isMinimumQuantity } from './helpers/trade.helper';
 import { TradeRedisRepository } from '@src/redis/trade-redis.repository';
 import { TRADE_TYPES } from './constants/trade.constants';
+import { WorkerPoolService } from './worker-pool.service';
 
 @Injectable()
 export class TradeAskBidService {
@@ -39,18 +40,20 @@ export class TradeAskBidService {
         coinPrices,
       );
 
-      for (const trade of availableTrades) {
-        try{
-        const tradeDto = this.buildTradeDto(trade, coinLatestInfo, tradeType);
-        this.logger.debug(`처리 중인 거래: tradeId=${tradeDto.tradeId}`);
-        await handler(tradeDto);
-        } catch (err) {
-          this.logger.error(
-            `미체결 거래 처리 중 오류 발생: trade=${JSON.stringify(trade)}, error=${err.message}`,
-            err.stack,
-          );
-        }
-      }
+      await Promise.all(
+        availableTrades.map(async (trade) => {
+          try {
+            const tradeDto = this.buildTradeDto(trade, coinLatestInfo, tradeType);
+            this.logger.debug(`처리 중인 거래: tradeId=${tradeDto.tradeId}`);
+            await handler(tradeDto); // 병렬로 실행됨
+          } catch (err) {
+            this.logger.error(
+              `미체결 거래 처리 중 오류 발생: trade=${JSON.stringify(trade)}, error=${err.message}`,
+              err.stack,
+            );
+          }
+        })
+      );
     } catch (error) {
       this.logger.error(
         `미체결 거래 처리 전반적 오류: tradeType=${tradeType}, error=${error.message}`,

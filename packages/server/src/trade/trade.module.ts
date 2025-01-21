@@ -13,9 +13,10 @@ import { TradeHistoryRepository } from 'src/trade-history/trade-history.reposito
 import { AskService } from './trade-ask.service';
 import { TradeService } from './trade.service';
 import { TradeAskBidService } from './trade-ask-bid.service';
+import { WorkerPoolService } from './worker-pool.service';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([Trade]), HttpModule, UpbitModule],
+  imports: [TypeOrmModule.forFeature([Trade]), HttpModule, UpbitModule, ],
   providers: [
     BidService,
     AskService,
@@ -26,9 +27,10 @@ import { TradeAskBidService } from './trade-ask-bid.service';
     TradeHistoryRepository,
     TradeService,
     TradeAskBidService,
-    Logger
+    Logger,
+    WorkerPoolService,
   ],
   controllers: [TradeController],
-  exports: [TradeRepository]
+  exports: [TradeRepository, BidService]
 })
 export class TradeModule {}

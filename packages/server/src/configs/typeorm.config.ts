@@ -11,5 +11,6 @@ export default function getTypeOrmConfig(): TypeOrmModuleOptions {
     entities: [__dirname + '/../**/*.entity.{js,ts}'],
     synchronize: process.env.DB_SYNCHRONIZE === 'true',
     dropSchema: process.env.DB_DROPSCHEMA === 'true',
+    
   };
 }

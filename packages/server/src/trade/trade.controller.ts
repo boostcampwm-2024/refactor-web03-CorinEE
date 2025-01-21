@@ -27,6 +27,7 @@ import { TradeService } from './trade.service';
 import { TradeData } from './dtos/trade.interface';
 import { TradeAskDto, TradeDto } from './dtos/trade.dto';
 import { TRADE_TYPES } from './constants/trade.constants';
+import { WorkerPoolService } from './worker-pool.service';
 
 @ApiTags('Trade')
 @ApiBearerAuth('access-token')
@@ -38,6 +39,7 @@ export class TradeController {
     private readonly bidService: BidService,
     private readonly askService: AskService,
     private readonly tradeService: TradeService,
+    private readonly workerPoolService: WorkerPoolService,
   ) {}
 
   @Get('calculate-percentage-bid/:moneyType')
@@ -72,6 +74,11 @@ export class TradeController {
   async bidTrade(@Request() req, @Body() bidDto: TradeData) {
     return this.bidService.createBidTrade(req.user, bidDto);
   }
+
+  // @Post('bid')
+  // async handleBid(@Request() req, @Body() bidDto: any) {
+  //   return this.workerPoolService.executeTask(req.user, { type: 'bid', data: bidDto });
+  // }
 
   @Post('ask')
   @ApiOperation({ summary: '판매 주문 생성' })
