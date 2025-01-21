@@ -19,7 +19,7 @@ import { CustomLogger } from '@src/common/custom-logger';
 		AssetRepository,
 		AssetService,
 		CoinListService,
-		Logger,
+		Logger
 	],
 })
 export class AccountModule {}

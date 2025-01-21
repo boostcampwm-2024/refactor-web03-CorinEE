@@ -32,27 +32,30 @@ export class TradeAskBidService {
     try {
       const coinLatestInfo = this.coinDataUpdaterService.getCoinLatestInfo();
       if (coinLatestInfo.size === 0) return;
-
+  
       const coinPrices = this.buildCoinPrices(coinLatestInfo);
-
+  
       const availableTrades = await this.redisRepository.findMatchingTrades(
         tradeType,
         coinPrices,
       );
-
+  
+      // 병렬 처리로 모든 거래를 처리
       await Promise.all(
         availableTrades.map(async (trade) => {
           try {
             const tradeDto = this.buildTradeDto(trade, coinLatestInfo, tradeType);
             this.logger.debug(`처리 중인 거래: tradeId=${tradeDto.tradeId}`);
-            await handler(tradeDto); // 병렬로 실행됨
+            await handler(tradeDto);
           } catch (err) {
             this.logger.error(
-              `미체결 거래 처리 중 오류 발생: trade=${JSON.stringify(trade)}, error=${err.message}`,
+              `미체결 거래 처리 중 오류 발생: trade=${JSON.stringify(
+                trade,
+              )}, error=${err.message}`,
               err.stack,
             );
           }
-        })
+        }),
       );
     } catch (error) {
       this.logger.error(
@@ -63,6 +66,7 @@ export class TradeAskBidService {
       this.logger.log(`${tradeType} 미체결 거래 처리 완료`);
     }
   }
+  
   private buildCoinPrices(coinLatestInfo: Map<string, any>): CoinPriceDto[] {
     const prices: CoinPriceDto[] = [];
     coinLatestInfo.forEach((value, key) => {
@@ -130,6 +134,7 @@ export class TradeAskBidService {
     tradeData.quantity = formatQuantity(tradeData.quantity - buyData.quantity);
     if (isMinimumQuantity(tradeData.quantity)) {
       await this.tradeRepository.deleteTrade(tradeData.tradeId, queryRunner);
+      
       await this.redisRepository.deleteTrade(tradeData);
     } else {
       await this.tradeRepository.updateTradeQuantity(tradeData, queryRunner);

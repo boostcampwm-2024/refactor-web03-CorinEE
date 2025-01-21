@@ -1,6 +1,7 @@
 import {
 	BadRequestException,
 	Injectable,
+	OnApplicationBootstrap,
 	OnModuleInit,
 	UnprocessableEntityException,
 } from '@nestjs/common';
@@ -19,16 +20,16 @@ import {
 import { UPBIT_UPDATED_COIN_INFO_TIME } from '../upbit/constants';
 import { TradeNotFoundException } from './exceptions/trade.exceptions';
 import { TradeAskBidService } from './trade-ask-bid.service';
+import { isMainThread, Worker } from 'worker_threads';
+import { query } from 'express';
 
 @Injectable()
 export class BidService extends TradeAskBidService implements OnModuleInit {
-
-	private transactionCreateBid: boolean = false;
 	private isProcessing: { [key: number]: boolean } = {};
 
-	onModuleInit() {
+    onModuleInit() {
 		this.startPendingTradesProcessor();
-	}
+    }
 
 	private startPendingTradesProcessor() {
 		const processBidTrades = async () => {
@@ -61,12 +62,6 @@ export class BidService extends TradeAskBidService implements OnModuleInit {
 		if (isMinimumQuantity(bidDto.receivedAmount * bidDto.receivedPrice)) {
 			throw new BadRequestException('최소 거래 금액보다 작습니다.');
 		}
-
-		// if (this.transactionCreateBid) {
-		// 	await this.waitForTransaction(() => this.transactionCreateBid);
-		// }
-		// this.transactionCreateBid = true;
-
 		try {
 			let userTrade;
 			const transactionResult = await this.executeTransaction(
@@ -74,13 +69,10 @@ export class BidService extends TradeAskBidService implements OnModuleInit {
 					if (bidDto.receivedAmount <= 0) {
 						throw new BadRequestException('수량은 0보다 커야 합니다.');
 					}
-
 					const userAccount = await this.accountRepository.validateUserAccount(
-						user.userId,
+						user.userId, queryRunner
 					);
-
 					await this.checkCurrencyBalance(bidDto, userAccount);
-
 					const { receivedPrice, receivedAmount } = bidDto;
 
 					await this.accountRepository.updateAccountCurrency(
@@ -89,7 +81,6 @@ export class BidService extends TradeAskBidService implements OnModuleInit {
 						userAccount.id,
 						queryRunner,
 					);
-
 					userTrade = await this.tradeRepository.createTrade(
 						bidDto,
 						user.userId,
@@ -113,12 +104,11 @@ export class BidService extends TradeAskBidService implements OnModuleInit {
 					quantity: bidDto.receivedAmount,
 					createdAt: userTrade.createdAt,
 				};
-
 				await this.redisRepository.createTrade(tradeData);
 			}
 			return transactionResult;
-		} finally {
-			this.transactionCreateBid = false;
+		}catch(error){
+			console.log(error);
 		}
 	}
 
@@ -157,9 +147,7 @@ export class BidService extends TradeAskBidService implements OnModuleInit {
 					if (order.ask_price > bidDto.receivedPrice) break;
 					const tradeResult = await this.executeTransaction(
 						async (queryRunner) => {
-							const account = await this.accountRepository.findOne({
-								where: { user: { id: userId } },
-							});
+							const account = await this.accountRepository.getAccount(userId, queryRunner);
 
 							bidDto.accountBalance = account[typeGiven];
 							bidDto.account = account;
@@ -212,7 +200,7 @@ export class BidService extends TradeAskBidService implements OnModuleInit {
 		}
 
 		buyData.price = formatQuantity(ask_price * krw);
-		const user = await this.userRepository.getUser(userId);
+		const user = await this.userRepository.getUserByQueryRunner(userId,queryRunner);
 
 		await this.tradeHistoryRepository.createTradeHistory(
 			user,
@@ -297,17 +285,5 @@ export class BidService extends TradeAskBidService implements OnModuleInit {
 			userAccount.id,
 			queryRunner,
 		);
-	}
-
-	private async waitForTransaction(
-		checkCondition: () => boolean,
-	): Promise<void> {
-		return new Promise<void>((resolve) => {
-			const check = () => {
-				if (!checkCondition()) resolve();
-				else setTimeout(check, TRANSACTION_CHECK_INTERVAL);
-			};
-			check();
-		});
 	}
 }

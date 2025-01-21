@@ -35,9 +35,9 @@ export class TradeRepository extends Repository<Trade> {
 		queryRunner: QueryRunner,
 	): Promise<Trade> {
 		try {
-			const user = await this.userRepository.getUser(userId);
+			const user = await this.userRepository.getUserByQueryRunner(userId,queryRunner);
 
-			this.userRepository.validateUser(userId);
+			this.userRepository.validateUser(userId,queryRunner);
 
 			const trade = this.createTradeEntity(tradeDto, user, tradeType);
 			const savedTrade = await queryRunner.manager.save(Trade, trade);
