@@ -1,6 +1,7 @@
 import {
   BadRequestException,
   Injectable,
+  Logger,
   OnModuleInit,
   UnprocessableEntityException,
 } from '@nestjs/common';
@@ -22,6 +23,7 @@ import { TradeAskBidService } from './trade-ask-bid.service';
 
 @Injectable()
 export class AskService extends TradeAskBidService implements OnModuleInit {
+  protected readonly logger = new Logger(TradeAskBidService.name);
   private isProcessing: { [key: number]: boolean } = {};
 
   onModuleInit() {

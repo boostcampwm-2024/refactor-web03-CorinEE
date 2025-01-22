@@ -14,7 +14,7 @@ import { WorkerPoolService } from './worker-pool.service';
 
 @Injectable()
 export class TradeAskBidService {
-  private readonly logger = new Logger(TradeAskBidService.name);
+  protected readonly logger = new Logger(TradeAskBidService.name);
   constructor(
     protected readonly dataSource: DataSource,
     protected readonly accountRepository: AccountRepository,
