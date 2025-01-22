@@ -250,7 +250,7 @@ export class TradeService {
     tradeData: any,
     queryRunner: QueryRunner,
   ): Promise<void> {
-    await this.tradeHistoryRepository.createTradeHistory(
+    await this.tradeHistoryRepository.createTradeHistoryWithQR(
       user,
       tradeData,
       queryRunner,
@@ -268,7 +268,7 @@ export class TradeService {
       return;
     }
 
-    await this.assetRepository.updateAssetQuantityPrice(
+    await this.assetRepository.updateAssetQuantityPriceWithQR(
       { ...asset, quantity, price },
       queryRunner,
     );

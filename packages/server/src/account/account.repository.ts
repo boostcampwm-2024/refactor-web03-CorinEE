@@ -77,6 +77,36 @@ export class AccountRepository extends Repository<Account> {
 			throw error;
 		}
 	}
+
+	async updateAccountCurrencyWithBid(
+		typeGiven: string,
+		change: number,
+		availableBalance: number,
+		accountId: number,
+	){
+		this.logger.log(
+			`계정 통화 업데이트 시작: accountId=${accountId}, type=${typeGiven}`,
+		);
+		try {
+			await this
+				.createQueryBuilder()
+				.update(Account)
+				.set({
+					// 직접 연산 처리: ()로 감싸 동적 SQL 계산
+					[typeGiven]: () => `${typeGiven} + ${change}`,
+					availableKRW: () => `availableKRW + ${availableBalance}`,
+				})
+				.where('id = :id', { id: accountId })
+				.execute();
+			this.logger.log(`계정 통화 업데이트 완료: accountId=${accountId}`);
+		} catch (error) {
+			this.logger.error(
+				`계정 통화 업데이트 실패: ${error.message}`,
+				error.stack,
+			);
+			throw error;
+		}
+	}
 	async updateAccountAvailableCurrency(
 		change: number,
 		accountId: number,
@@ -173,10 +203,25 @@ export class AccountRepository extends Repository<Account> {
 		}
 	}
 
-	async getAccount(id: number, queryRunner: QueryRunner): Promise<Account> {
+	async getAccountWithQueryRunner(id: number, queryRunner: QueryRunner): Promise<Account> {
 		this.logger.log(`계정 조회 시작: userId=${id}`);
 		try {
 			const account = await queryRunner.manager.findOne(Account, {
+				where: { user: { id } },
+			});
+
+			this.logger.log(`계정 조회 완료: userId=${id}`);
+			return account;
+		} catch (error) {
+			this.logger.error(`계정 조회 실패: ${error.message}`, error.stack);
+			throw error;
+		}
+	}
+
+	async getAccount(id: number): Promise<Account> {
+		this.logger.log(`계정 조회 시작: userId=${id}`);
+		try {
+			const account = await this.findOne({
 				where: { user: { id } },
 			});
 

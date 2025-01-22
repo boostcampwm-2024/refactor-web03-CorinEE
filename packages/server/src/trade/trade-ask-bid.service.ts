@@ -13,7 +13,7 @@ import { TRADE_TYPES } from './constants/trade.constants';
 
 @Injectable()
 export class TradeAskBidService {
-  private readonly logger = new Logger(TradeAskBidService.name);
+  protected readonly logger = new Logger(TradeAskBidService.name);
   constructor(
     protected readonly dataSource: DataSource,
     protected readonly accountRepository: AccountRepository,
@@ -31,14 +31,14 @@ export class TradeAskBidService {
     try {
       const coinLatestInfo = this.coinDataUpdaterService.getCoinLatestInfo();
       if (coinLatestInfo.size === 0) return;
-  
+
       const coinPrices = this.buildCoinPrices(coinLatestInfo);
-  
+
       const availableTrades = await this.redisRepository.findMatchingTrades(
         tradeType,
         coinPrices,
       );
-  
+
       // 병렬 처리로 모든 거래를 처리
       await Promise.all(
         availableTrades.map(async (trade) => {
@@ -65,7 +65,7 @@ export class TradeAskBidService {
       this.logger.log(`${tradeType} 미체결 거래 처리 완료`);
     }
   }
-  
+
   private buildCoinPrices(coinLatestInfo: Map<string, any>): CoinPriceDto[] {
     const prices: CoinPriceDto[] = [];
     coinLatestInfo.forEach((value, key) => {

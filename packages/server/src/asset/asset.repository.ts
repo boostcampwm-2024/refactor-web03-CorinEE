@@ -8,6 +8,7 @@ import { Account } from '@src/account/account.entity';
 import { Asset } from './asset.entity';
 import { Coin } from './dtos/asset.interface';
 import { ensureMax8Decimals } from './utils/util';
+import { query } from 'express';
 
 @Injectable()
 export class AssetRepository extends Repository<Asset> {
@@ -29,7 +30,6 @@ export class AssetRepository extends Repository<Asset> {
     account: Account,
     price: number,
     quantity: number,
-    queryRunner: QueryRunner,
   ): Promise<Asset> {
     this.logger.log(`자산 생성 시작: type=${typeReceived}, accountId=${account.id}`);
     try {
@@ -44,7 +44,7 @@ export class AssetRepository extends Repository<Asset> {
       asset.availableQuantity = quantity;
       asset.account = account;
 
-      const savedAsset = await queryRunner.manager.save(Asset, asset);
+      const savedAsset = await this.save(asset);
       this.logger.log(`자산 생성 완료: assetId=${savedAsset.assetId}`);
 
       return savedAsset;
@@ -61,6 +61,39 @@ export class AssetRepository extends Repository<Asset> {
    * price, quantity가 소수점 8자리를 넘으면 예외
    */
   async updateAssetQuantityPrice(
+    asset: Asset,
+  ): Promise<void> {
+    this.logger.log(`자산 수량/가격 업데이트 시작: assetId=${asset.assetId}`);
+    try {
+      // --- [추가] 8자리 검사 ---
+      ensureMax8Decimals(asset.price, 'price');
+      ensureMax8Decimals(asset.quantity, 'quantity');
+      ensureMax8Decimals(asset.availableQuantity, 'availableQuantity');
+
+      await this
+        .createQueryBuilder()
+        .update(Asset)
+        .set({
+          quantity: asset.quantity,
+          price: asset.price,
+          availableQuantity: asset.availableQuantity,
+        })
+        .where('assetId = :assetId', { assetId: asset.assetId })
+        .execute();
+
+      this.logger.log(`자산 수량/가격 업데이트 완료: assetId=${asset.assetId}`);
+    } catch (error) {
+      this.logger.error(
+        `자산 수량/가격 업데이트 실패: ${error.message}`,
+        error.stack,
+      );
+      throw new InternalServerErrorException(
+        '자산 업데이트 중 오류가 발생했습니다.',
+      );
+    }
+  }
+
+  async updateAssetQuantityPriceWithQR(
     asset: Asset,
     queryRunner: QueryRunner,
   ): Promise<void> {
@@ -191,7 +224,7 @@ export class AssetRepository extends Repository<Asset> {
     }
   }
 
-  async getAsset(
+  async getAssetWithQR(
     id: number,
     assetName: string,
     queryRunner: QueryRunner,
@@ -199,6 +232,31 @@ export class AssetRepository extends Repository<Asset> {
     this.logger.log(`자산 조회 시작: accountId=${id}, assetName=${assetName}`);
     try {
       const asset = await queryRunner.manager.findOne(Asset, {
+        where: {
+          account: { id },
+          assetName,
+        },
+      });
+
+      this.logger.log(
+        `자산 조회 완료: ${asset ? `assetId=${asset.assetId}` : '자산 없음'}`,
+      );
+      return asset;
+    } catch (error) {
+      this.logger.error(`자산 조회 실패: ${error.message}`, error.stack);
+      throw new InternalServerErrorException(
+        '자산 조회 중 오류가 발생했습니다.',
+      );
+    }
+  }
+
+  async getAsset(
+    id: number,
+    assetName: string,
+  ): Promise<Asset> {
+    this.logger.log(`자산 조회 시작: accountId=${id}, assetName=${assetName}`);
+    try {
+      const asset = await this.findOne({
         where: {
           account: { id },
           assetName,

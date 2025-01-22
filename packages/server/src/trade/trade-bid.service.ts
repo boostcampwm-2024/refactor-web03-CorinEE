@@ -1,6 +1,7 @@
 import {
 	BadRequestException,
 	Injectable,
+	Logger,
 	OnApplicationBootstrap,
 	OnModuleInit,
 	UnprocessableEntityException,
@@ -22,11 +23,13 @@ import { TradeNotFoundException } from './exceptions/trade.exceptions';
 import { TradeAskBidService } from './trade-ask-bid.service';
 import { isMainThread, Worker } from 'worker_threads';
 import { query } from 'express';
+import { User } from '@src/auth/user.entity';
+import { Account } from '@src/account/account.entity';
 
 @Injectable()
 export class BidService extends TradeAskBidService implements OnModuleInit {
 	private isProcessing: { [key: number]: boolean } = {};
-
+	protected readonly logger = new Logger(BidService.name);
     onModuleInit() {
 		this.startPendingTradesProcessor();
     }
@@ -64,6 +67,8 @@ export class BidService extends TradeAskBidService implements OnModuleInit {
 		}
 		try {
 			let userTrade;
+			const startTime = new Date().getTime();
+			console.log(`${user.userId} start execution time: ${startTime} ms`); // 실행 시간 출력
 			const transactionResult = await this.executeTransaction(
 				async (queryRunner) => {
 					if (bidDto.receivedAmount <= 0) {
@@ -93,6 +98,10 @@ export class BidService extends TradeAskBidService implements OnModuleInit {
 					};
 				},
 			);
+			const endTime = new Date().getTime(); // 종료 시간 기록
+      		const duration = endTime - startTime; // 실행 시간 계산
+      		console.log(`${user.userId} Transaction execution time: ${duration} ms`); // 실행 시간 출력
+
 			if (transactionResult.statusCode === 200) {
 				const tradeData: TradeDataRedis = {
 					tradeId: userTrade.tradeId,
@@ -106,6 +115,7 @@ export class BidService extends TradeAskBidService implements OnModuleInit {
 				};
 				await this.redisRepository.createTrade(tradeData);
 			}
+			console.log(user.userId+"의 거래가 등록되었습니다.");
 			return transactionResult;
 		}catch(error){
 			console.log(error);
@@ -142,25 +152,42 @@ export class BidService extends TradeAskBidService implements OnModuleInit {
 			const orderbook =
 				this.coinDataUpdaterService.getCoinOrderbookByBid(bidDto);
 
+			const user = await this.userRepository.getUser(bidDto.userId);
+
+			const account = await this.accountRepository.getAccount(userId);
+					
+			bidDto.accountBalance = account[typeGiven];
+			bidDto.account = account;
+
 			for (const order of orderbook) {
 				try {
 					if (order.ask_price > bidDto.receivedPrice) break;
-					const tradeResult = await this.executeTransaction(
-						async (queryRunner) => {
-							const account = await this.accountRepository.getAccount(userId, queryRunner);
+					// const tradeResult = await this.executeTransaction(
+					// 	async (queryRunner) => {
+					// 		const account = await this.accountRepository.getAccount(userId, queryRunner);
 
-							bidDto.accountBalance = account[typeGiven];
-							bidDto.account = account;
+					// 		bidDto.accountBalance = account[typeGiven];
+					// 		bidDto.account = account;
 
-							const remainingQuantity = await this.executeBidTrade(
-								bidDto,
-								order,
-								queryRunner,
-							);
+					// 		const remainingQuantity = await this.executeBidTrade(
+					// 			bidDto,
+					// 			order,
+					// 			user,
+					// 			account,
+					// 			queryRunner,
+					// 		);
 
-							return !isMinimumQuantity(remainingQuantity);
-						},
+					// 		return !isMinimumQuantity(remainingQuantity);
+					// 	},
+					// );
+
+					const remainingQuantity = await this.executeBidTrade(
+						bidDto,
+						order,
+						user,
 					);
+					const tradeResult = !isMinimumQuantity(remainingQuantity);		
+
 
 					if (!tradeResult) break;
 				} catch (error) {
@@ -170,6 +197,7 @@ export class BidService extends TradeAskBidService implements OnModuleInit {
 					throw error;
 				}
 			}
+			this.logger.error(bidDto.tradeId+ " 매수 성공");
 		} finally {
 			delete this.isProcessing[bidDto.tradeId];
 		}
@@ -178,53 +206,70 @@ export class BidService extends TradeAskBidService implements OnModuleInit {
 	private async executeBidTrade(
 		bidDto: TradeData,
 		order: OrderBookEntry,
-		queryRunner: QueryRunner,
+		user: User,
 	): Promise<number> {
-		const tradeData = await this.tradeRepository.findTradeWithLock(
-			bidDto.tradeId,
-			queryRunner,
-		);
-		if (!tradeData || isMinimumQuantity(tradeData.quantity)) {
-			return 0;
+		const queryRunner = this.dataSource.createQueryRunner();
+		await queryRunner.connect();
+		await queryRunner.startTransaction('READ COMMITTED');
+
+		try {
+			const tradeData = await this.tradeRepository.findTradeWithLock(
+				bidDto.tradeId,
+				queryRunner,
+			);
+			if (!tradeData || isMinimumQuantity(tradeData.quantity)) {
+				return 0;
+			}
+			const { ask_price, ask_size } = order;
+			const { account, krw } = bidDto;
+
+			const buyData = { ...tradeData };
+			buyData.quantity = formatQuantity(
+				tradeData.quantity >= ask_size ? ask_size : tradeData.quantity,
+			);
+
+			if (isMinimumQuantity(buyData.quantity)) {
+				return 0;
+			}
+
+			buyData.price = formatQuantity(ask_price * krw);
+
+			const result =  await this.updateTradeData(tradeData, buyData, queryRunner);
+			await queryRunner.commitTransaction();
+			const tradeTime = new Date();
+			this.tradeHistoryRepository.createTradeHistory(
+				user,
+				buyData,
+				tradeTime
+			);
+
+			bidDto.account.availableKRW += formatQuantity(
+				(bidDto.receivedPrice - buyData.price) * buyData.quantity,
+			);
+
+			bidDto.account.KRW -= formatQuantity(buyData.price * buyData.quantity);
+
+			this.processAssetUpdate(bidDto, account.id, buyData);
+			this.updateAccountBalances(bidDto, buyData, account);
+
+			return result;
+		} catch (error) {
+			await queryRunner.rollbackTransaction();
+			throw error;
+		} finally {
+			await queryRunner.release();
 		}
-		const { ask_price, ask_size } = order;
-		const { userId, account, typeReceived, krw } = bidDto;
-
-		const buyData = { ...tradeData };
-		buyData.quantity = formatQuantity(
-			tradeData.quantity >= ask_size ? ask_size : tradeData.quantity,
-		);
-
-		if (isMinimumQuantity(buyData.quantity)) {
-			return 0;
-		}
-
-		buyData.price = formatQuantity(ask_price * krw);
-		const user = await this.userRepository.getUserByQueryRunner(userId,queryRunner);
-
-		await this.tradeHistoryRepository.createTradeHistory(
-			user,
-			buyData,
-			queryRunner,
-		);
-
-		const asset = await this.assetRepository.getAsset(
-			account.id,
-			typeReceived,
-			queryRunner,
-		);
-
-		await this.processAssetUpdate(bidDto, asset, buyData, queryRunner);
-		await this.updateAccountBalances(bidDto, buyData, queryRunner);
-		return await this.updateTradeData(tradeData, buyData, queryRunner);
 	}
 
 	private async processAssetUpdate(
 		bidDto: TradeData,
-		asset: any,
+		accountId: any,
 		buyData: any,
-		queryRunner: QueryRunner,
 	): Promise<void> {
+		const asset = await this.assetRepository.getAsset(
+			accountId,
+			bidDto.typeReceived,
+		);
 		if (asset) {
 			asset.price = formatQuantity(
 				asset.price + buyData.price * buyData.quantity,
@@ -234,14 +279,13 @@ export class BidService extends TradeAskBidService implements OnModuleInit {
 				asset.availableQuantity + buyData.quantity,
 			);
 
-			await this.assetRepository.updateAssetQuantityPrice(asset, queryRunner);
+			await this.assetRepository.updateAssetQuantityPrice(asset);
 		} else {
 			await this.assetRepository.createAsset(
 				bidDto.typeReceived,
 				bidDto.account,
 				formatQuantity(buyData.price * buyData.quantity),
 				formatQuantity(buyData.quantity),
-				queryRunner,
 			);
 		}
 	}
@@ -249,22 +293,9 @@ export class BidService extends TradeAskBidService implements OnModuleInit {
 	private async updateAccountBalances(
 		bidDto: TradeData,
 		buyData: any,
-		queryRunner: QueryRunner,
+		userAccount: Account,
 	): Promise<void> {
-		const { account, typeGiven, typeReceived } = bidDto;
-		const userAccount = await this.accountRepository.getAccount(
-			bidDto.userId,
-			queryRunner,
-		);
-
-		if (typeReceived === 'BTC') {
-			const btcQuantity = formatQuantity(account.BTC + buyData.quantity);
-			await this.accountRepository.updateAccountBTC(
-				userAccount.id,
-				btcQuantity,
-				queryRunner,
-			);
-		}
+		const { typeGiven } = bidDto;
 
 		const returnChange = formatQuantity(buyData.price * buyData.quantity);
 
@@ -272,18 +303,25 @@ export class BidService extends TradeAskBidService implements OnModuleInit {
 			(bidDto.receivedPrice - buyData.price) * buyData.quantity,
 		);
 		
-		await this.accountRepository.updateAccountCurrency(
+		// await this.accountRepository.updateAccountCurrency(
+		// 	typeGiven,
+		// 	-returnChange,
+		// 	userAccount.id,
+		// 	queryRunner,
+		// );
+
+		// await this.accountRepository.updateAccountCurrency(
+		// 	'availableKRW',
+		// 	change,
+		// 	userAccount.id,
+		// 	queryRunner,
+		// );
+
+		await this.accountRepository.updateAccountCurrencyWithBid(
 			typeGiven,
 			-returnChange,
-			userAccount.id,
-			queryRunner,
-		);
-
-		await this.accountRepository.updateAccountCurrency(
-			'availableKRW',
 			change,
 			userAccount.id,
-			queryRunner,
-		);
+		)
 	}
 }

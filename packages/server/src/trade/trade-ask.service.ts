@@ -132,7 +132,7 @@ export class AskService extends TradeAskBidService implements OnModuleInit {
     account: any,
     queryRunner: QueryRunner,
   ) {
-    const userAsset = await this.assetRepository.getAsset(
+    const userAsset = await this.assetRepository.getAssetWithQR(
       account.id,
       askDto.typeGiven,
       queryRunner,
@@ -204,12 +204,12 @@ export class AskService extends TradeAskBidService implements OnModuleInit {
       return 0;
     }
 
-    const account = await this.accountRepository.getAccount(
+    const account = await this.accountRepository.getAccountWithQueryRunner(
       askDto.userId,
       queryRunner,
     );
 
-    const userAsset = await this.assetRepository.getAsset(
+    const userAsset = await this.assetRepository.getAssetWithQR(
       account.id,
       askDto.typeGiven,
       queryRunner,
@@ -240,7 +240,7 @@ export class AskService extends TradeAskBidService implements OnModuleInit {
     buyData.assetName = buyData.tradeCurrency;
     buyData.tradeCurrency = assetName;
 
-    await this.tradeHistoryRepository.createTradeHistory(
+    await this.tradeHistoryRepository.createTradeHistoryWithQR(
       user,
       buyData,
       queryRunner,
