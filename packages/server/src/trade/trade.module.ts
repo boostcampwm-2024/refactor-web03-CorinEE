@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { Logger, Module } from '@nestjs/common';
 import { TradeController } from './trade.controller';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { Trade } from './trade.entity';
@@ -26,6 +26,7 @@ import { TradeAskBidService } from './trade-ask-bid.service';
     TradeHistoryRepository,
     TradeService,
     TradeAskBidService,
+    Logger
   ],
   controllers: [TradeController],
   exports: [TradeRepository]

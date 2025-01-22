@@ -1,4 +1,4 @@
-import { Module, forwardRef } from '@nestjs/common';
+import { Logger, Module, forwardRef } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { Account } from './account.entity';
 import { AccountRepository } from './account.repository';
@@ -18,6 +18,7 @@ import { CoinListService } from '@src/upbit/coin-list.service';
 		AssetRepository,
 		AssetService,
 		CoinListService,
+		Logger
 	],
 })
 export class AccountModule {}

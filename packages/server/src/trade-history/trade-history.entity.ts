@@ -27,7 +27,7 @@ export class TradeHistory {
   @Column('double')
   quantity: number;
 
-  @Column({ type: 'timestamp' })
+  @Column({ type: 'timestamp', precision:6 })
   createdAt: Date;
 
   @CreateDateColumn({ type: 'timestamp' })

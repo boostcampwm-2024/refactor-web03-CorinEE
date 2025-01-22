@@ -27,6 +27,7 @@ import { TradeService } from './trade.service';
 import { TradeData } from './dtos/trade.interface';
 import { TradeAskDto, TradeDto } from './dtos/trade.dto';
 import { TRADE_TYPES } from './constants/trade.constants';
+import { Worker, isMainThread, parentPort, workerData } from 'worker_threads';
 
 @ApiTags('Trade')
 @ApiBearerAuth('access-token')

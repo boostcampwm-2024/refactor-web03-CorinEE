@@ -23,7 +23,6 @@ import { TradeAskBidService } from './trade-ask-bid.service';
 @Injectable()
 export class AskService extends TradeAskBidService implements OnModuleInit {
   private isProcessing: { [key: number]: boolean } = {};
-  private transactionCreateAsk: boolean = false;
 
   onModuleInit() {
     this.startPendingTradesProcessor();
@@ -68,11 +67,6 @@ export class AskService extends TradeAskBidService implements OnModuleInit {
       throw new BadRequestException('최소 거래 금액보다 작습니다.');
     }
 
-    if (this.transactionCreateAsk) {
-      await this.waitForTransaction(() => this.transactionCreateAsk);
-    }
-    this.transactionCreateAsk = true;
-
     try {
       let userTrade;
       const transactionResult = await this.executeTransaction(
@@ -82,8 +76,9 @@ export class AskService extends TradeAskBidService implements OnModuleInit {
           }
 
           const userAccount = await this.accountRepository.validateUserAccount(
-            user.userId,
+            user.userId, queryRunner
           );
+
           const userAsset = await this.checkAssetAvailability(
             askDto,
             userAccount,
@@ -127,8 +122,8 @@ export class AskService extends TradeAskBidService implements OnModuleInit {
         await this.redisRepository.createTrade(tradeData);
       }
       return transactionResult;
-    } finally {
-      this.transactionCreateAsk = false;
+    } catch (error) {
+      console.error(`거래 생성 실패`, { error: error.stack, userId: user.userId });
     }
   }
 
@@ -137,7 +132,7 @@ export class AskService extends TradeAskBidService implements OnModuleInit {
     account: any,
     queryRunner: QueryRunner,
   ) {
-    const userAsset = await this.assetRepository.getAsset(
+    const userAsset = await this.assetRepository.getAssetWithQR(
       account.id,
       askDto.typeGiven,
       queryRunner,
@@ -209,12 +204,12 @@ export class AskService extends TradeAskBidService implements OnModuleInit {
       return 0;
     }
 
-    const account = await this.accountRepository.getAccount(
+    const account = await this.accountRepository.getAccountWithQueryRunner(
       askDto.userId,
       queryRunner,
     );
 
-    const userAsset = await this.assetRepository.getAsset(
+    const userAsset = await this.assetRepository.getAssetWithQR(
       account.id,
       askDto.typeGiven,
       queryRunner,
@@ -239,13 +234,13 @@ export class AskService extends TradeAskBidService implements OnModuleInit {
     }
 
     buyData.price = formatQuantity(bid_price * krw);
-    const user = await this.userRepository.getUser(userId);
+    const user = await this.userRepository.getUserByQueryRunner(userId, queryRunner);
 
     const assetName = buyData.assetName;
     buyData.assetName = buyData.tradeCurrency;
     buyData.tradeCurrency = assetName;
 
-    await this.tradeHistoryRepository.createTradeHistory(
+    await this.tradeHistoryRepository.createTradeHistoryWithQR(
       user,
       buyData,
       queryRunner,
@@ -309,17 +304,5 @@ export class AskService extends TradeAskBidService implements OnModuleInit {
 			account.id,
 			queryRunner,
 		);
-  }
-
-  private async waitForTransaction(
-    checkCondition: () => boolean,
-  ): Promise<void> {
-    return new Promise<void>((resolve) => {
-      const check = () => {
-        if (!checkCondition()) resolve();
-        else setTimeout(check, TRANSACTION_CHECK_INTERVAL);
-      };
-      check();
-    });
   }
 }

@@ -12,7 +12,7 @@ export class TradeHistoryRepository extends Repository<TradeHistory> {
     super(TradeHistory, dataSource.createEntityManager());
   }
 
-  async createTradeHistory(
+  async createTradeHistoryWithQR(
     user: User,
     tradeData: CreateTradeHistoryDto,
     queryRunner: QueryRunner,
@@ -27,6 +27,29 @@ export class TradeHistoryRepository extends Repository<TradeHistory> {
       });
 
       await queryRunner.manager.save(TradeHistory, tradeHistory);
+      this.logger.log(`거래 내역 생성 완료: userId=${user.id}`);
+    } catch (error) {
+      this.logger.error(`거래 내역 생성 실패: ${error.message}`, error.stack);
+      throw error;
+    }
+  }
+
+  async createTradeHistory(
+    user: User,
+    tradeData: CreateTradeHistoryDto,
+    tradeTime: Date,
+  ): Promise<void> {
+    this.logger.log(`거래 내역 생성 시작: userId=${user.id}`);
+
+    try {
+      const tradeHistory = new TradeHistory();
+      Object.assign(tradeHistory, {
+        ...tradeData,
+        tradeDate: tradeTime,
+        user,
+      });
+
+      await this.save(tradeHistory);
       this.logger.log(`거래 내역 생성 완료: userId=${user.id}`);
     } catch (error) {
       this.logger.error(`거래 내역 생성 실패: ${error.message}`, error.stack);
