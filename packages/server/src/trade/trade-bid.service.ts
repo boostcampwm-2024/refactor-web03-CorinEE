@@ -67,8 +67,6 @@ export class BidService extends TradeAskBidService implements OnModuleInit {
 		}
 		try {
 			let userTrade;
-			const startTime = new Date().getTime();
-			console.log(`${user.userId} start execution time: ${startTime} ms`); // 실행 시간 출력
 			const transactionResult = await this.executeTransaction(
 				async (queryRunner) => {
 					if (bidDto.receivedAmount <= 0) {
@@ -98,9 +96,6 @@ export class BidService extends TradeAskBidService implements OnModuleInit {
 					};
 				},
 			);
-			const endTime = new Date().getTime(); // 종료 시간 기록
-      		const duration = endTime - startTime; // 실행 시간 계산
-      		console.log(`${user.userId} Transaction execution time: ${duration} ms`); // 실행 시간 출력
 
 			if (transactionResult.statusCode === 200) {
 				const tradeData: TradeDataRedis = {
@@ -115,7 +110,6 @@ export class BidService extends TradeAskBidService implements OnModuleInit {
 				};
 				await this.redisRepository.createTrade(tradeData);
 			}
-			console.log(user.userId+"의 거래가 등록되었습니다.");
 			return transactionResult;
 		}catch(error){
 			console.log(error);
@@ -162,25 +156,6 @@ export class BidService extends TradeAskBidService implements OnModuleInit {
 			for (const order of orderbook) {
 				try {
 					if (order.ask_price > bidDto.receivedPrice) break;
-					// const tradeResult = await this.executeTransaction(
-					// 	async (queryRunner) => {
-					// 		const account = await this.accountRepository.getAccount(userId, queryRunner);
-
-					// 		bidDto.accountBalance = account[typeGiven];
-					// 		bidDto.account = account;
-
-					// 		const remainingQuantity = await this.executeBidTrade(
-					// 			bidDto,
-					// 			order,
-					// 			user,
-					// 			account,
-					// 			queryRunner,
-					// 		);
-
-					// 		return !isMinimumQuantity(remainingQuantity);
-					// 	},
-					// );
-
 					const remainingQuantity = await this.executeBidTrade(
 						bidDto,
 						order,
@@ -197,7 +172,6 @@ export class BidService extends TradeAskBidService implements OnModuleInit {
 					throw error;
 				}
 			}
-			this.logger.error(bidDto.tradeId+ " 매수 성공");
 		} finally {
 			delete this.isProcessing[bidDto.tradeId];
 		}
@@ -234,14 +208,16 @@ export class BidService extends TradeAskBidService implements OnModuleInit {
 
 			buyData.price = formatQuantity(ask_price * krw);
 
-			const result =  await this.updateTradeData(tradeData, buyData, queryRunner);
-			await queryRunner.commitTransaction();
 			const tradeTime = new Date();
 			this.tradeHistoryRepository.createTradeHistory(
 				user,
 				buyData,
 				tradeTime
 			);
+			
+			const result =  await this.updateTradeData(tradeData, buyData, queryRunner);
+			await queryRunner.commitTransaction();
+
 
 			bidDto.account.availableKRW += formatQuantity(
 				(bidDto.receivedPrice - buyData.price) * buyData.quantity,
@@ -302,20 +278,6 @@ export class BidService extends TradeAskBidService implements OnModuleInit {
 		const change = formatQuantity(
 			(bidDto.receivedPrice - buyData.price) * buyData.quantity,
 		);
-		
-		// await this.accountRepository.updateAccountCurrency(
-		// 	typeGiven,
-		// 	-returnChange,
-		// 	userAccount.id,
-		// 	queryRunner,
-		// );
-
-		// await this.accountRepository.updateAccountCurrency(
-		// 	'availableKRW',
-		// 	change,
-		// 	userAccount.id,
-		// 	queryRunner,
-		// );
 
 		await this.accountRepository.updateAccountCurrencyWithBid(
 			typeGiven,

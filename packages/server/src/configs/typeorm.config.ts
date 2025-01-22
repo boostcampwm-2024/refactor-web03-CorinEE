@@ -13,7 +13,7 @@ export default function getTypeOrmConfig(): TypeOrmModuleOptions {
     synchronize: process.env.DB_SYNCHRONIZE === 'true',
     dropSchema: process.env.DB_DROPSCHEMA === 'true',
     extra:{
-      connectionLimit: 10,
+      connectionLimit: 100,
     }
   };
 }
